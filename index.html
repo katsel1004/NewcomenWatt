@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>고등학교 2학년 역학과 에너지: 뉴커먼과 와트의 증기기관 비교</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- KaTeX Math Rendering CSS & JS CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      user-select: none;
+    }
+
+    /* Custom Range Slider */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #334155;
+      border-radius: 6px;
+      height: 6px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <!-- TOP HEADER -->
+  <header class="w-full bg-slate-900/90 border-b border-slate-800 px-4 py-3 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-gradient-to-tr from-sky-500 to-indigo-600 rounded-xl shadow-lg shadow-sky-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-50 tracking-tight">
+            고등학교 2학년 역학과 에너지: 뉴커먼과 와트의 증기기관 비교
+          </h1>
+          <p class="text-xs text-slate-400">열기관 단원 도입 탐구 · 대기압 기관 vs 분리 응축기 열효율 시뮬레이션</p>
+        </div>
+      </div>
+
+      <!-- MODE SELECTION TABS -->
+      <nav class="flex p-1 bg-slate-800/80 rounded-xl border border-slate-700/60 text-xs sm:text-sm">
+        <button id="tab-newcomen" onclick="setMode('newcomen')" class="px-4 py-1.5 rounded-lg font-medium transition-all duration-200 text-slate-300 hover:text-white">
+          1. 뉴커먼 기관
+        </button>
+        <button id="tab-watt" onclick="setMode('watt')" class="px-4 py-1.5 rounded-lg font-medium transition-all duration-200 text-slate-300 hover:text-white">
+          2. 와트 기관
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+
+    <!-- LEFT AREA: 2D ENGINE CANVAS ANIMATION (lg:col-span-7) -->
+    <section class="lg:col-span-7 flex flex-col gap-3">
+      <div class="glass-panel rounded-2xl p-4 flex flex-col h-full relative overflow-hidden">
+        
+        <!-- Canvas Status Bar Header -->
+        <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-800/80">
+          <div class="flex items-center gap-2">
+            <span id="canvas-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30">
+              1. 토머스 뉴커먼 대기압 기관 (1712)
+            </span>
+            <span class="text-xs text-slate-400 font-mono" id="cycle-count-label">사이클: 0회</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-slate-400">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> 가열(100°C)</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 냉각</span>
+          </div>
+        </div>
+
+        <!-- Engine Simulation Canvas -->
+        <div class="relative w-full aspect-[4/3] sm:aspect-[16/10] rounded-xl bg-slate-950/90 overflow-hidden border border-slate-800/80">
+          <canvas id="simCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+          
+          <!-- Heat Loss Alert Floating Banner -->
+          <div id="heat-loss-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-red-950/90 border border-red-500/50 text-red-200 text-xs font-semibold shadow-xl flex items-center gap-2 animate-bounce">
+            <svg class="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span>실린더 벽면 재가열 열손실 발생! (<span class="katex-render">$Q_{\text{loss}}$</span> 막대함)</span>
+          </div>
+        </div>
+
+        <!-- Simulation Control Bar -->
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+          <!-- Play / Pause / Reset -->
+          <div class="flex items-center gap-2">
+            <button id="btn-play" onclick="togglePlay()" class="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-md shadow-sky-500/20 flex items-center gap-1.5">
+              <svg id="icon-play" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              <span id="text-play">일시정지</span>
+            </button>
+            <button onclick="resetSimulation()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-medium transition-all border border-slate-700 flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              초기화
+            </button>
+          </div>
+
+          <!-- Speed Controls -->
+          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+            <span class="text-slate-400 px-1 font-medium">속도:</span>
+            <button onclick="setSpeed(0.5)" id="speed-05" class="px-2 py-1 rounded text-slate-400 hover:text-white">0.5x</button>
+            <button onclick="setSpeed(1.0)" id="speed-10" class="px-2 py-1 rounded bg-slate-800 text-sky-400 font-bold">1.0x</button>
+            <button onclick="setSpeed(2.0)" id="speed-20" class="px-2 py-1 rounded text-slate-400 hover:text-white">2.0x</button>
+          </div>
+
+          <!-- Boiler Heat Control Slider -->
+          <div class="flex items-center gap-2 min-w-[170px] flex-1 max-w-xs">
+            <label for="slider-qin" class="text-xs text-slate-300 whitespace-nowrap font-medium">보일러 열량 (<span class="katex-render">$Q_{\text{in}}$</span>):</label>
+            <input type="range" id="slider-qin" min="50" max="250" value="120" oninput="onQinChange(this.value)" class="w-full">
+            <span id="val-qin-label" class="text-xs font-mono text-sky-400 w-14 text-right font-semibold">120kW</span>
+          </div>
+
+          <!-- Graphic Display Options -->
+          <div class="flex items-center gap-3 text-xs text-slate-300">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="chk-particles" checked onchange="state.showParticles=this.checked" class="rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-0">
+              <span>증기 입자</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="chk-heatflow" checked onchange="state.showHeatFlow=this.checked" class="rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-0">
+              <span>열 흐름</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT AREA: REALTIME P-V GRAPH & THERMODYNAMICS (lg:col-span-5) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+
+      <!-- P-V Graph Card -->
+      <div class="glass-panel rounded-2xl p-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-sky-400"></div>
+            <h2 class="text-sm font-bold text-slate-200">실시간 P-V 그래프</h2>
+          </div>
+          <span class="text-[11px] text-slate-400">곡선 면적 = 기관이 한 일 (<span class="katex-render">$W$</span>)</span>
+        </div>
+
+        <div class="relative w-full aspect-[16/10] bg-slate-950/90 rounded-xl overflow-hidden border border-slate-800">
+          <canvas id="pvCanvas" class="w-full h-full block"></canvas>
+        </div>
+      </div>
+
+      <!-- Real-Time Metrics Dashboard -->
+      <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+        <h2 class="text-sm font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center justify-between">
+          <span>열역학 계측 데이터 대시보드</span>
+          <span class="text-xs font-normal text-slate-400">실시간 측정치</span>
+        </h2>
+
+        <!-- Physical State Gauges -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+            <p class="text-[11px] text-slate-400">실린더 압력 (<span class="katex-render">$P$</span>)</p>
+            <p id="dash-p" class="text-base sm:text-lg font-bold font-mono text-sky-400 mt-0.5">101.3 <span class="text-xs font-normal">kPa</span></p>
+          </div>
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+            <p class="text-[11px] text-slate-400">실린더 온도 (<span class="katex-render">$T$</span>)</p>
+            <p id="dash-t" class="text-base sm:text-lg font-bold font-mono text-amber-400 mt-0.5">100.0 <span class="text-xs font-normal">°C</span></p>
+          </div>
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+            <p class="text-[11px] text-slate-400">실린더 부피 (<span class="katex-render">$V$</span>)</p>
+            <p id="dash-v" class="text-base sm:text-lg font-bold font-mono text-indigo-400 mt-0.5">1.00 <span class="text-xs font-normal">m³</span></p>
+          </div>
+        </div>
+
+        <!-- Energy Balance & Thermal Efficiency Cards -->
+        <div class="grid grid-cols-2 gap-2 mt-1">
+          <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex flex-col justify-between">
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-slate-400">공급 열량 (<span class="katex-render">$Q_{\text{in}}$</span>)</span>
+              <span id="dash-qin" class="font-mono text-red-400 font-bold">120 kJ</span>
+            </div>
+            <div class="flex justify-between items-center text-xs mt-1.5">
+              <span class="text-slate-400">방출 열량 (<span class="katex-render">$Q_{\text{out}}$</span>)</span>
+              <span id="dash-qout" class="font-mono text-slate-300 font-bold">118 kJ</span>
+            </div>
+            <div class="flex justify-between items-center text-xs mt-1.5 pt-1.5 border-t border-slate-800">
+              <span class="text-slate-400">유효 한 일 (<span class="katex-render">$W$</span>)</span>
+              <span id="dash-work" class="font-mono text-emerald-400 font-bold">2.0 kJ</span>
+            </div>
+          </div>
+
+          <!-- Highlight Efficiency Gauge -->
+          <div class="bg-gradient-to-br from-slate-900 to-slate-900/90 p-3 rounded-xl border border-emerald-500/30 flex flex-col justify-between items-center text-center relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+            <span class="text-xs font-semibold text-emerald-400 tracking-wider">열효율 (<span class="katex-render">$e$</span>)</span>
+            <div class="my-1">
+              <span id="dash-eff" class="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-400">1.0</span>
+              <span class="text-sm font-bold text-emerald-500">%</span>
+            </div>
+            <span id="dash-eff-sub" class="text-[10px] text-slate-400">뉴커먼: ~1.0% 내외</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- BOTTOM CONCEPT EXPLANATION CARD (lg:col-span-12) -->
+    <section class="lg:col-span-12 mt-1">
+      <div class="glass-panel rounded-2xl p-5 border border-slate-800 relative">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          </div>
+          <h2 id="concept-title" class="text-base font-bold text-slate-100">
+            개념 학습: 토머스 뉴커먼의 대기압 증기기관 (Newcomen Engine)
+          </h2>
+        </div>
+
+        <div id="concept-body" class="text-xs sm:text-sm text-slate-300 leading-relaxed grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Dynamically populated JS content -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="w-full text-center py-3 text-xs text-slate-500 border-t border-slate-900 bg-slate-950">
+    고등학교 물리학 II / 역학과 에너지 단원 수업 도입용 시뮬레이션 도구 · HTML5 Canvas & Vanilla JS
+  </footer>
+
+
+  <!-- SIMULATION & PHYSICS JAVASCRIPT ENGINE -->
+  <script>
+    // Global Engine Simulation State
+    const state = {
+      mode: 'newcomen', // 'newcomen' | 'watt'
+      isRunning: true,
+      speed: 1.0,
+      qInRate: 120, // kW
+      showParticles: true,
+      showHeatFlow: true,
+
+      // Newcomen Engine Parameters
+      newcomen: {
+        phase: 0, // 0: Steam In (Upstroke), 1: Cold Spray, 2: Downstroke, 3: Reheating Wall
+        progress: 0, // 0 to 1
+        pistonPos: 0, // 0 (bottom) to 1 (top)
+        cycles: 0,
+        temp: 100,
+        pressure: 101.3,
+        volume: 1.0,
+        wallTemp: 100, // 100 (Red) to 30 (Blue)
+        qIn: 0,
+        qOut: 0,
+        work: 0,
+        efficiency: 1.0,
+        currentCyclePV: [],
+        completedCyclePV: [],
+        particles: []
+      },
+
+      // Watt Engine Parameters
+      watt: {
+        phase: 0, // 0: Steam stroke (Up), 1: Exhaust to Condenser, 2: Downstroke, 3: Steam Reset
+        progress: 0,
+        pistonPos: 0,
+        cycles: 0,
+        temp: 100,
+        pressure: 101.3,
+        volume: 1.0,
+        wallTemp: 100, // Always stays high! (~100°C)
+        qIn: 0,
+        qOut: 0,
+        work: 0,
+        efficiency: 4.2,
+        currentCyclePV: [],
+        completedCyclePV: [],
+        particles: [],
+        flywheelAngle: 0
+      }
+    };
+
+    // Canvas References & Contexts
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const pvCanvas = document.getElementById('pvCanvas');
+    const pvCtx = pvCanvas.getContext('2d');
+
+    // Render KaTeX Math across elements
+    function renderMath() {
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+
+    // Handle Resize & High DPI Scaling
+    function resizeCanvases() {
+      const dpr = window.devicePixelRatio || 1;
+      
+      const simRect = simCanvas.getBoundingClientRect();
+      simCanvas.width = simRect.width * dpr;
+      simCanvas.height = simRect.height * dpr;
+      simCtx.scale(dpr, dpr);
+
+      const pvRect = pvCanvas.getBoundingClientRect();
+      pvCanvas.width = pvRect.width * dpr;
+      pvCanvas.height = pvRect.height * dpr;
+      pvCtx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    // Initializer
+    window.addEventListener('load', () => {
+      resizeCanvases();
+      initParticles();
+      initCyclePVDefaults();
+      setMode('newcomen');
+      renderMath();
+      requestAnimationFrame(gameLoop);
+    });
+
+    // Generate continuous baseline P-V cycle loops
+    function initCyclePVDefaults() {
+      // Baseline closed curve for Newcomen
+      const nLoop = [];
+      for (let i = 0; i <= 30; i++) nLoop.push({ v: 0.3 + (i / 30) * 0.7, p: 101.3 });
+      for (let i = 0; i <= 20; i++) nLoop.push({ v: 1.0, p: 101.3 - (i / 20) * 80 });
+      for (let i = 0; i <= 30; i++) nLoop.push({ v: 1.0 - (i / 30) * 0.7, p: 21.3 });
+      for (let i = 0; i <= 20; i++) nLoop.push({ v: 0.3, p: 21.3 + (i / 20) * 80 });
+      state.newcomen.completedCyclePV = nLoop;
+
+      // Baseline closed curve for Watt
+      const wLoop = [];
+      for (let i = 0; i <= 30; i++) wLoop.push({ v: 0.3 + (i / 30) * 0.7, p: 130.0 });
+      for (let i = 0; i <= 20; i++) wLoop.push({ v: 1.0, p: 130.0 - (i / 20) * 115 });
+      for (let i = 0; i <= 30; i++) wLoop.push({ v: 1.0 - (i / 30) * 0.7, p: 15.0 });
+      for (let i = 0; i <= 20; i++) wLoop.push({ v: 0.3, p: 15.0 + (i / 20) * 115 });
+      state.watt.completedCyclePV = wLoop;
+    }
+
+    // Particle Initialization
+    function initParticles() {
+      state.newcomen.particles = Array.from({ length: 40 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.02,
+        vy: (Math.random() - 0.5) * 0.02,
+        size: Math.random() * 4 + 2
+      }));
+
+      state.watt.particles = Array.from({ length: 40 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.02,
+        vy: (Math.random() - 0.5) * 0.02,
+        size: Math.random() * 4 + 2
+      }));
+    }
+
+    // Mode Controller
+    function setMode(mode) {
+      state.mode = mode;
+
+      ['newcomen', 'watt'].forEach(m => {
+        const btn = document.getElementById(`tab-${m}`);
+        if (m === mode) {
+          btn.className = "px-4 py-1.5 rounded-lg font-bold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20 flex items-center gap-1.5";
+        } else {
+          btn.className = "px-4 py-1.5 rounded-lg font-medium transition-all duration-200 text-slate-300 hover:text-white flex items-center gap-1.5";
+        }
+      });
+
+      const badge = document.getElementById('canvas-badge');
+      if (mode === 'newcomen') badge.textContent = '1. 토머스 뉴커먼 대기압 기관 (1712)';
+      else badge.textContent = '2. 제임스 와트 분리 응축기 기관 (1769)';
+
+      updateConceptText(mode);
+      resetSimulation();
+      renderMath();
+    }
+
+    function togglePlay() {
+      state.isRunning = !state.isRunning;
+      const text = document.getElementById('text-play');
+      const icon = document.getElementById('icon-play');
+      if (state.isRunning) {
+        text.textContent = '일시정지';
+        icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+      } else {
+        text.textContent = '재생';
+        icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      }
+    }
+
+    function setSpeed(sp) {
+      state.speed = sp;
+      const speedMap = [
+        { val: 0.5, id: 'speed-05' },
+        { val: 1.0, id: 'speed-10' },
+        { val: 2.0, id: 'speed-20' }
+      ];
+      speedMap.forEach(item => {
+        const btn = document.getElementById(item.id);
+        if (btn) {
+          if (item.val === sp) {
+            btn.className = 'px-2 py-1 rounded bg-slate-800 text-sky-400 font-bold';
+          } else {
+            btn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white';
+          }
+        }
+      });
+    }
+
+    function onQinChange(val) {
+      state.qInRate = parseFloat(val);
+      document.getElementById('val-qin-label').textContent = `${val}kW`;
+    }
+
+    function resetSimulation() {
+      // Reset Newcomen State
+      state.newcomen.phase = 0;
+      state.newcomen.progress = 0;
+      state.newcomen.pistonPos = 0;
+      state.newcomen.cycles = 0;
+      state.newcomen.temp = 100;
+      state.newcomen.pressure = 101.3;
+      state.newcomen.volume = 1.0;
+      state.newcomen.wallTemp = 100;
+      state.newcomen.qIn = 0;
+      state.newcomen.qOut = 0;
+      state.newcomen.work = 0;
+      state.newcomen.currentCyclePV = [];
+
+      // Reset Watt State
+      state.watt.phase = 0;
+      state.watt.progress = 0;
+      state.watt.pistonPos = 0;
+      state.watt.cycles = 0;
+      state.watt.temp = 100;
+      state.watt.pressure = 101.3;
+      state.watt.volume = 1.0;
+      state.watt.wallTemp = 100;
+      state.watt.qIn = 0;
+      state.watt.qOut = 0;
+      state.watt.work = 0;
+      state.watt.currentCyclePV = [];
+      state.watt.flywheelAngle = 0;
+
+      const banner = document.getElementById('heat-loss-banner');
+      if (banner) banner.classList.add('hidden');
+
+      initParticles();
+      initCyclePVDefaults();
+    }
+
+    // ------------------------------------------------------------------------
+    // MAIN ANIMATION & PHYSICS LOOP
+    // ------------------------------------------------------------------------
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.1) * state.speed;
+      lastTime = now;
+
+      if (state.isRunning) {
+        if (state.mode === 'newcomen') updateNewcomen(dt);
+        else updateWatt(dt);
+      }
+
+      renderSimCanvas();
+      renderPVCanvas();
+      updateDashboard();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ------------------------------------------------------------------------
+    // NEWCOMEN ENGINE PHYSICS LOGIC
+    // ------------------------------------------------------------------------
+    function updateNewcomen(dt) {
+      const e = state.newcomen;
+      // Increased movement factor for robust visible pump stroke
+      const speedFactor = (state.qInRate / 100) * 1.2;
+
+      // Record point in current cycle
+      e.currentCyclePV.push({ p: e.pressure, v: e.volume });
+
+      // Phase 0: Upstroke (Steam inlet valve open, piston rises dramatically)
+      if (e.phase === 0) {
+        e.progress += dt * 0.9 * speedFactor;
+        e.pistonPos = Math.min(1.0, e.progress);
+        e.temp = 100;
+        e.pressure = 101.3;
+        e.volume = 0.3 + e.pistonPos * 0.7;
+        e.wallTemp = Math.min(100, e.wallTemp + dt * 140);
+
+        e.qIn += dt * state.qInRate * 0.35;
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 1; // Direct cold water spray
+        }
+      }
+      // Phase 1: Cold Water Spray & Rapid Condensation inside cylinder
+      else if (e.phase === 1) {
+        e.progress += dt * 3.5;
+        e.pressure = 101.3 - e.progress * 80; // Drops to ~21 kPa (Vacuum!)
+        e.temp = 100 - e.progress * 65; // Drops to ~35°C
+        e.wallTemp = 100 - e.progress * 60; // Cylinder wall cools down!
+
+        e.qOut += dt * state.qInRate * 0.55;
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 2; // Power Stroke (Pushed by atmosphere)
+        }
+      }
+      // Phase 2: Power Stroke (Downstroke forced by atmospheric pressure)
+      else if (e.phase === 2) {
+        e.progress += dt * 1.5 * speedFactor;
+        e.pistonPos = Math.max(0.0, 1 - e.progress);
+        e.volume = 0.3 + e.pistonPos * 0.7;
+        
+        // Work done = (P_atm - P_cylinder) * dV
+        const deltaW = (101.3 - e.pressure) * (0.7 / 1.0) * dt * 0.045;
+        e.work += deltaW;
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 3; // Reheating cold cylinder wall
+        }
+      }
+      // Phase 3: Reheating Loss (Incoming steam wastes energy reheating cold cylinder walls)
+      else if (e.phase === 3) {
+        e.progress += dt * 1.8;
+        const reheatLoss = dt * state.qInRate * 2.0;
+        e.qIn += reheatLoss * 0.7;
+        e.qOut += reheatLoss * 0.6; // Wasted heat
+
+        e.wallTemp = Math.min(100, e.wallTemp + dt * 100);
+        e.temp = Math.min(100, e.temp + dt * 110);
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 0; // Next cycle
+          e.cycles++;
+
+          // Save completed cycle curve and start clean new cycle record
+          if (e.currentCyclePV.length > 5) {
+            e.completedCyclePV = [...e.currentCyclePV];
+          }
+          e.currentCyclePV = [];
+        }
+      }
+
+      // Efficiency calculation: e = W / Q_in (~1.0%)
+      e.efficiency = e.qIn > 0 ? Math.min(1.2, Math.max(0.4, (e.work / e.qIn) * 100)) : 1.0;
+
+      // Heat Loss UI Banner Toggle (Only active in Newcomen mode)
+      const banner = document.getElementById('heat-loss-banner');
+      if (state.mode === 'newcomen' && (e.phase === 3 || e.wallTemp < 65)) {
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // WATT ENGINE PHYSICS LOGIC (Separate Condenser)
+    // ------------------------------------------------------------------------
+    function updateWatt(dt) {
+      const e = state.watt;
+      const speedFactor = (state.qInRate / 100) * 2.2;
+
+      // Flywheel rotation
+      e.flywheelAngle += dt * 4.5 * speedFactor;
+
+      // Record point in current cycle
+      e.currentCyclePV.push({ p: e.pressure, v: e.volume });
+
+      // Phase 0: Steam Admission / Upstroke (Cylinder stays HOT at 100°C!)
+      if (e.phase === 0) {
+        e.progress += dt * 2.0 * speedFactor;
+        e.pistonPos = Math.min(1.0, e.progress);
+        e.temp = 100;
+        e.wallTemp = 100; // Steam jacket maintains constant high temperature
+        e.pressure = 130.0;
+        e.volume = 0.3 + e.pistonPos * 0.7;
+
+        e.qIn += dt * state.qInRate * 0.4;
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 1; // Separate Condenser Valve Opens
+        }
+      }
+      // Phase 1: Exhaust into Separate Condenser
+      else if (e.phase === 1) {
+        e.progress += dt * 5.0;
+        e.pressure = 130 - e.progress * 115; // Drops to ~15 kPa
+        e.qOut += dt * state.qInRate * 0.25;
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 2; // Power Stroke
+        }
+      }
+      // Phase 2: Power Downstroke
+      else if (e.phase === 2) {
+        e.progress += dt * 2.5 * speedFactor;
+        e.pistonPos = Math.max(0.0, 1 - e.progress);
+        e.volume = 0.3 + e.pistonPos * 0.7;
+
+        const deltaW = (130 - e.pressure) * (0.7 / 1.0) * dt * 0.13;
+        e.work += deltaW;
+
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 3; // Instant reset without reheating cylinder!
+        }
+      }
+      // Phase 3: Reset Cycle (Zero wall reheating loss!)
+      else if (e.phase === 3) {
+        e.progress += dt * 4.0;
+        if (e.progress >= 1) {
+          e.progress = 0;
+          e.phase = 0;
+          e.cycles++;
+
+          // Save completed cycle curve and start clean new cycle record
+          if (e.currentCyclePV.length > 5) {
+            e.completedCyclePV = [...e.currentCyclePV];
+          }
+          e.currentCyclePV = [];
+        }
+      }
+
+      // Efficiency calculation (Watt ~4.5%)
+      e.efficiency = e.qIn > 0 ? Math.min(4.5, Math.max(3.5, (e.work / e.qIn) * 100)) : 4.5;
+
+      // Ensure heat loss banner is hidden in Watt mode
+      const banner = document.getElementById('heat-loss-banner');
+      if (banner) banner.classList.add('hidden');
+    }
+
+    // ------------------------------------------------------------------------
+    // CANVAS 2D GRAPHICS RENDERER
+    // ------------------------------------------------------------------------
+    function renderSimCanvas() {
+      const rect = simCanvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      simCtx.clearRect(0, 0, w, h);
+
+      // Background Gradient
+      const bgGrad = simCtx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#020617');
+      bgGrad.addColorStop(1, '#0f172a');
+      simCtx.fillStyle = bgGrad;
+      simCtx.fillRect(0, 0, w, h);
+
+      if (state.mode === 'newcomen') {
+        drawSingleEngine(simCtx, state.newcomen, 'newcomen', 0, 0, w, h);
+      } else {
+        drawSingleEngine(simCtx, state.watt, 'watt', 0, 0, w, h);
+      }
+    }
+
+    // DRAW SINGLE ENGINE COMPONENTS
+    function drawSingleEngine(ctx, e, engineType, offsetX, offsetY, width, height) {
+      const scale = width / 550;
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+
+      // Top Engine Label
+      ctx.font = 'bold 14px Pretendard';
+      ctx.fillStyle = engineType === 'newcomen' ? '#38bdf8' : '#34d399';
+      ctx.fillText(engineType === 'newcomen' ? '뉴커먼 대기압 기관' : '와트 분리 응축기 기관', 20 * scale, 30 * scale);
+
+      // 1. BOILER & FLAME (Bottom Left)
+      const boilerX = 90 * scale;
+      const boilerY = height - 100 * scale;
+      const boilerW = 100 * scale;
+      const boilerH = 70 * scale;
+
+      // Boiler Tank
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.roundRect(boilerX, boilerY, boilerW, boilerH, [10, 10, 0, 0]);
+      ctx.fill();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Boiler Label
+      ctx.font = '11px Pretendard';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText('보일러 (Boiler)', boilerX + 12 * scale, boilerY + 38 * scale);
+
+      // Animated Fire Flame
+      if (state.isRunning) {
+        ctx.fillStyle = '#ef4444';
+        for (let i = 0; i < 5; i++) {
+          const fx = boilerX + 15 * scale + i * 16 * scale;
+          const fh = 14 * scale + Math.sin(Date.now() * 0.012 + i) * 6 * scale;
+          ctx.beginPath();
+          ctx.arc(fx, boilerY + boilerH + 5 * scale, 7 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 2. CYLINDER (Middle Left)
+      const cylX = 95 * scale;
+      const cylY = boilerY - 150 * scale;
+      const cylW = 90 * scale;
+      const cylH = 130 * scale;
+
+      // Wall Color Dynamic (Newcomen: Red <-> Blue, Watt: Hot Orange)
+      let wallColor = '#ef4444';
+      if (engineType === 'newcomen') {
+        const t = (e.wallTemp - 30) / 70; // 0 (cold blue) to 1 (hot red)
+        const r = Math.round(59 + t * (239 - 59));
+        const g = Math.round(130 + t * (68 - 130));
+        const b = Math.round(246 + t * (68 - 246));
+        wallColor = `rgb(${r}, ${g}, ${b})`;
+      } else {
+        wallColor = '#f97316';
+      }
+
+      // Steam Jacket (Watt Engine detailed double-walled steam jacket)
+      if (engineType === 'watt') {
+        const jMargin = 12 * scale;
+        const jX = cylX - jMargin;
+        const jY = cylY - 8 * scale;
+        const jW = cylW + (jMargin * 2);
+        const jH = cylH + 16 * scale;
+
+        // Outer Steam Jacket Chamber Fill (Translucent hot steam glow)
+        const jGrad = ctx.createLinearGradient(jX, jY, jX + jW, jY);
+        jGrad.addColorStop(0, 'rgba(249, 115, 22, 0.35)');
+        jGrad.addColorStop(0.5, 'rgba(251, 146, 60, 0.15)');
+        jGrad.addColorStop(1, 'rgba(249, 115, 22, 0.35)');
+        ctx.fillStyle = jGrad;
+        ctx.beginPath();
+        ctx.roundRect(jX, jY, jW, jH, 8 * scale);
+        ctx.fill();
+
+        // Outer Jacket Metallic Wall Border
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 3.5 * scale;
+        ctx.stroke();
+
+        // Insulation Inner Boundary Lines
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)';
+        ctx.lineWidth = 1 * scale;
+        ctx.beginPath();
+        ctx.rect(jX + 3 * scale, jY + 3 * scale, jW - 6 * scale, jH - 6 * scale);
+        ctx.stroke();
+
+        // Branch Steam Pipe feeding into Jacket from Boiler Steam Line
+        const pipeX = boilerX + boilerW / 2;
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 4 * scale;
+        ctx.beginPath();
+        ctx.moveTo(pipeX, cylY + cylH + 10 * scale);
+        ctx.lineTo(jX + 4 * scale, cylY + cylH + 10 * scale);
+        ctx.lineTo(jX + 4 * scale, cylY + cylH - 20 * scale);
+        ctx.stroke();
+
+        // Steam Jacket Labels
+        ctx.font = 'bold 10px Pretendard';
+        ctx.fillStyle = '#fb923c';
+        ctx.fillText('증기 재킷 (보온 덮개)', cylX - 10 * scale, jY - 18 * scale);
+        ctx.font = '9px Pretendard';
+        ctx.fillStyle = '#fdba74';
+        ctx.fillText('(항시 100°C 유지로 열손실 방지)', cylX - 18 * scale, jY - 6 * scale);
+      }
+
+      // Cylinder Body
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(cylX, cylY, cylW, cylH);
+      ctx.strokeStyle = wallColor;
+      ctx.lineWidth = 5 * scale;
+      ctx.strokeRect(cylX, cylY, cylW, cylH);
+
+      // Newcomen Heat Loss Visualization (Wavy heat loss arrows radiating from cylinder walls)
+      if (engineType === 'newcomen' && (state.showHeatFlow || e.phase === 1 || e.phase === 3 || e.wallTemp < 85)) {
+        const now = Date.now() * 0.005;
+        const lossIntensity = e.phase === 3 ? 1.0 : (e.wallTemp < 80 ? 0.85 : 0.5);
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(239, 68, 68, ${0.75 * lossIntensity})`;
+        ctx.lineWidth = 2 * scale;
+
+        // Draw radiating wavy heat lines & arrowheads on left and right sides
+        [-1, 1].forEach(side => {
+          const startX = side === -1 ? cylX - 2 * scale : cylX + cylW + 2 * scale;
+          const dir = side;
+
+          for (let i = 0; i < 3; i++) {
+            const startY = cylY + 22 * scale + i * 38 * scale;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+
+            const waveLen = 22 * scale;
+            const waveOffset = Math.sin(now + i * 1.5 + side) * 5 * scale;
+            const midX = startX + dir * (waveLen * 0.5);
+            const endX = startX + dir * waveLen;
+
+            ctx.quadraticCurveTo(midX, startY + waveOffset, endX, startY + waveOffset * 0.5);
+            ctx.stroke();
+
+            // Arrow head pointing outward
+            ctx.fillStyle = `rgba(239, 68, 68, ${0.9 * lossIntensity})`;
+            ctx.beginPath();
+            ctx.moveTo(endX + dir * 4 * scale, startY + waveOffset * 0.5);
+            ctx.lineTo(endX, startY + waveOffset * 0.5 - 3 * scale);
+            ctx.lineTo(endX, startY + waveOffset * 0.5 + 3 * scale);
+            ctx.closePath();
+            ctx.fill();
+          }
+        });
+
+        // Heat Loss Text Annotations
+        ctx.font = 'bold 10px Pretendard';
+        ctx.fillStyle = '#fca5a5';
+        ctx.fillText('열손실 Q_loss', cylX - 68 * scale, cylY + cylH / 2);
+        ctx.fillText('방출 중~', cylX + cylW + 28 * scale, cylY + cylH / 2);
+
+        ctx.restore();
+      }
+
+      // Steam Pipe from Boiler to Cylinder
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 5 * scale;
+      ctx.beginPath();
+      ctx.moveTo(boilerX + boilerW / 2, boilerY);
+      ctx.lineTo(boilerX + boilerW / 2, cylY + cylH);
+      ctx.stroke();
+
+      // 3. PISTON inside Cylinder
+      const pistonH = 18 * scale;
+      const minPistonY = cylY + 10 * scale;
+      const maxPistonY = cylY + cylH - pistonH - 10 * scale;
+      const currentPistonY = maxPistonY - e.pistonPos * (maxPistonY - minPistonY);
+
+      // Piston Block
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      ctx.roundRect(cylX + 2 * scale, currentPistonY, cylW - 4 * scale, pistonH, 4);
+      ctx.fill();
+
+      // Piston Rod
+      const pistonRodX = cylX + cylW / 2;
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 5 * scale;
+      ctx.beginPath();
+      ctx.moveTo(pistonRodX, currentPistonY);
+
+      // 4. MECHANICAL TRANSMISSION: ROCKING BEAM vs FLYWHEEL
+      if (engineType === 'newcomen') {
+        // Newcomen Rocking Beam (Top) - Increased angular range for visible pump action
+        const fulcrumX = 270 * scale;
+        const fulcrumY = 70 * scale;
+        const beamLength = 200 * scale;
+        const angle = (e.pistonPos - 0.5) * 0.55; // Visible large swing angle!
+
+        const leftBeamX = fulcrumX - Math.cos(angle) * (beamLength / 2);
+        const leftBeamY = fulcrumY + Math.sin(angle) * (beamLength / 2);
+        const rightBeamX = fulcrumX + Math.cos(angle) * (beamLength / 2);
+        const rightBeamY = fulcrumY - Math.sin(angle) * (beamLength / 2);
+
+        // Piston Rod connected to Left Side of Rocking Beam
+        ctx.lineTo(leftBeamX, leftBeamY);
+        ctx.stroke();
+
+        // Beam Support Post
+        ctx.fillStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(fulcrumX - 15 * scale, height - 90 * scale);
+        ctx.lineTo(fulcrumX, fulcrumY);
+        ctx.lineTo(fulcrumX + 15 * scale, height - 90 * scale);
+        ctx.fill();
+
+        // Rocking Beam Wooden Bar
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 12 * scale;
+        ctx.beginPath();
+        ctx.moveTo(leftBeamX, leftBeamY);
+        ctx.lineTo(rightBeamX, rightBeamY);
+        ctx.stroke();
+
+        // Fulcrum Pin
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(fulcrumX, fulcrumY, 6 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Right Side: Mine Water Pump Mechanism
+        const pumpRodX = rightBeamX;
+        const pumpCylX = pumpRodX - 25 * scale;
+        const pumpCylY = height - 120 * scale;
+        const pumpCylW = 50 * scale;
+        const pumpCylH = 75 * scale;
+
+        // Dynamic Pump Piston Position inside Pump Cylinder
+        const pumpPistonY = pumpCylY + 15 * scale + (1 - e.pistonPos) * 35 * scale;
+
+        // Pump Rod connecting right beam to pump piston
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 4 * scale;
+        ctx.beginPath();
+        ctx.moveTo(pumpRodX, rightBeamY);
+        ctx.lineTo(pumpRodX, pumpPistonY);
+        ctx.stroke();
+
+        // Water Pump Outer Cylinder
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(pumpCylX, pumpCylY, pumpCylW, pumpCylH);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3 * scale;
+        ctx.strokeRect(pumpCylX, pumpCylY, pumpCylW, pumpCylH);
+
+        // Pumping Water inside Cylinder (Rises during stroke)
+        const waterHeight = 15 * scale + e.pistonPos * 40 * scale;
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
+        ctx.fillRect(pumpCylX + 2 * scale, pumpCylY + pumpCylH - waterHeight, pumpCylW - 4 * scale, waterHeight - 2 * scale);
+
+        // Pump Internal Piston Head
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(pumpCylX + 3 * scale, pumpPistonY, pumpCylW - 6 * scale, 10 * scale);
+
+        // Water Spout Stream (Discharging Water when pumping up!)
+        if (e.pistonPos > 0.4) {
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 3 * scale;
+          ctx.beginPath();
+          ctx.moveTo(pumpCylX + pumpCylW, pumpCylY + 15 * scale);
+          ctx.quadraticCurveTo(pumpCylX + pumpCylW + 20 * scale, pumpCylY + 10 * scale, pumpCylX + pumpCylW + 35 * scale, pumpCylY + 45 * scale);
+          ctx.stroke();
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = '10px Pretendard';
+          ctx.fillText('배수 수류!', pumpCylX + pumpCylW + 10 * scale, pumpCylY);
+        }
+
+        ctx.font = '10px Pretendard';
+        ctx.fillStyle = '#60a5fa';
+        ctx.fillText('광산 배수 펌프', pumpCylX - 5 * scale, height - 15 * scale);
+
+        // Cold Water Direct Spray Nozzle (Newcomen)
+        if (e.phase === 1) {
+          ctx.fillStyle = '#38bdf8';
+          for (let i = 0; i < 9; i++) {
+            ctx.beginPath();
+            ctx.arc(cylX + 15 * scale + i * 9 * scale, cylY + cylH - 15 * scale - (i % 3) * 5, 3 * scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.font = '10px Pretendard';
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillText('실린더 내 직접 냉각수 분사!', cylX + cylW + 10 * scale, cylY + cylH - 20 * scale);
+        }
+
+      } else {
+        // Watt Engine: Linkage & Rotating Flywheel
+        const flywheelX = 320 * scale;
+        const flywheelY = 130 * scale;
+        const flywheelR = 48 * scale;
+
+        // Piston Rod upwards
+        ctx.lineTo(pistonRodX, 70 * scale);
+        ctx.stroke();
+
+        // Connecting linkage to Flywheel Crank
+        const crankX = flywheelX + Math.cos(e.flywheelAngle) * (flywheelR * 0.65);
+        const crankY = flywheelY + Math.sin(e.flywheelAngle) * (flywheelR * 0.65);
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 4 * scale;
+        ctx.beginPath();
+        ctx.moveTo(pistonRodX, 70 * scale);
+        ctx.lineTo(crankX, crankY);
+        ctx.stroke();
+
+        // Rotating Flywheel Rim & Spokes
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 5 * scale;
+        ctx.beginPath();
+        ctx.arc(flywheelX, flywheelY, flywheelR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Spokes
+        for (let i = 0; i < 4; i++) {
+          const a = e.flywheelAngle + (i * Math.PI / 2);
+          ctx.beginPath();
+          ctx.moveTo(flywheelX, flywheelY);
+          ctx.lineTo(flywheelX + Math.cos(a) * flywheelR, flywheelY + Math.sin(a) * flywheelR);
+          ctx.stroke();
+        }
+
+        ctx.font = '11px Pretendard';
+        ctx.fillStyle = '#34d399';
+        ctx.fillText('회전 플라이휠 (동력 전달)', flywheelX - 55 * scale, flywheelY - flywheelR - 10 * scale);
+
+        // 5. SEPARATE CONDENSER (Watt Engine Feature!)
+        const condX = 270 * scale;
+        const condY = height - 110 * scale;
+        const condW = 70 * scale;
+        const condH = 80 * scale;
+
+        // Connecting Pipe from Cylinder to Separate Condenser
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 4 * scale;
+        ctx.beginPath();
+        ctx.moveTo(cylX + cylW, cylY + cylH - 30 * scale);
+        ctx.lineTo(condX + condW / 2, cylY + cylH - 30 * scale);
+        ctx.lineTo(condX + condW / 2, condY);
+        ctx.stroke();
+
+        // Condenser Water Tank (Cold Water)
+        ctx.fillStyle = '#1e3a8a';
+        ctx.fillRect(condX - 10 * scale, condY, condW + 20 * scale, condH);
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(condX - 10 * scale, condY, condW + 20 * scale, condH);
+
+        // Separate Condenser Inner Chamber
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(condX, condY + 10 * scale, condW, condH - 20 * scale);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeRect(condX, condY + 10 * scale, condW, condH - 20 * scale);
+
+        // Condenser Labels
+        ctx.font = '10px Pretendard';
+        ctx.fillStyle = '#60a5fa';
+        ctx.fillText('독립 응축기', condX, condY - 6 * scale);
+        ctx.fillText('(Cold Tank)', condX + 5 * scale, condY + condH + 14 * scale);
+
+        if (e.phase === 1 || e.phase === 2) {
+          ctx.fillStyle = '#38bdf8';
+          for (let i = 0; i < 6; i++) {
+            ctx.beginPath();
+            ctx.arc(condX + 12 * scale + (i % 3) * 20 * scale, condY + 22 * scale + Math.floor(i / 3) * 22 * scale, 2.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      // PARTICLES (Steam molecules floating inside cylinder)
+      if (state.showParticles) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        e.particles.forEach(p => {
+          const px = cylX + 5 * scale + p.x * (cylW - 10 * scale);
+          const py = currentPistonY + pistonH + 5 * scale + p.y * (cylY + cylH - currentPistonY - pistonH - 10 * scale);
+          ctx.beginPath();
+          ctx.arc(px, py, p.size * scale * 0.7, 0, Math.PI * 2);
+          ctx.fill();
+
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0 || p.x > 1) p.vx *= -1;
+          if (p.y < 0 || p.y > 1) p.vy *= -1;
+        });
+      }
+
+      ctx.restore();
+    }
+
+    // ------------------------------------------------------------------------
+    // REAL-TIME P-V GRAPH CANVAS RENDERER
+    // ------------------------------------------------------------------------
+    function renderPVCanvas() {
+      const rect = pvCanvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      pvCtx.clearRect(0, 0, w, h);
+
+      // Margins for Axes
+      const margin = { top: 25, right: 25, bottom: 38, left: 45 };
+      const gw = w - margin.left - margin.right;
+      const gh = h - margin.top - margin.bottom;
+
+      // Draw Grid Lines
+      pvCtx.strokeStyle = '#1e293b';
+      pvCtx.lineWidth = 1;
+
+      for (let i = 0; i <= 4; i++) {
+        // Horizontal grid (Pressure)
+        const y = margin.top + (gh / 4) * i;
+        pvCtx.beginPath();
+        pvCtx.moveTo(margin.left, y);
+        pvCtx.lineTo(w - margin.right, y);
+        pvCtx.stroke();
+
+        // Vertical grid (Volume)
+        const x = margin.left + (gw / 4) * i;
+        pvCtx.beginPath();
+        pvCtx.moveTo(x, margin.top);
+        pvCtx.lineTo(x, h - margin.bottom);
+        pvCtx.stroke();
+      }
+
+      // Axis Lines
+      pvCtx.strokeStyle = '#475569';
+      pvCtx.lineWidth = 2;
+      pvCtx.beginPath();
+      pvCtx.moveTo(margin.left, margin.top);
+      pvCtx.lineTo(margin.left, h - margin.bottom);
+      pvCtx.lineTo(w - margin.right, h - margin.bottom);
+      pvCtx.stroke();
+
+      // Axis Labels
+      pvCtx.font = '10px Pretendard';
+      pvCtx.fillStyle = '#94a3b8';
+      pvCtx.fillText('압력 P (kPa)', margin.left - 5, margin.top - 10);
+      pvCtx.fillText('부피 V (m³)', w - margin.right - 35, h - margin.bottom + 26);
+
+      // Coordinate Scaling Functions
+      const valToX = v => margin.left + ((v - 0.2) / 0.9) * gw;
+      const valToY = p => h - margin.bottom - (p / 150) * gh;
+
+      const activeEng = state.mode === 'newcomen' ? state.newcomen : state.watt;
+      const strokeColor = state.mode === 'newcomen' ? '#38bdf8' : '#34d399';
+      const fillColor = state.mode === 'newcomen' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(52, 211, 153, 0.22)';
+
+      // 1. Draw Full Closed Cycle Loop Line (Maintained cleanly in 1 full cycle)
+      const fullLoop = activeEng.completedCyclePV;
+      if (fullLoop && fullLoop.length > 2) {
+        pvCtx.beginPath();
+        pvCtx.moveTo(valToX(fullLoop[0].v), valToY(fullLoop[0].p));
+        for (let i = 1; i < fullLoop.length; i++) {
+          pvCtx.lineTo(valToX(fullLoop[i].v), valToY(fullLoop[i].p));
+        }
+        pvCtx.closePath();
+        pvCtx.fillStyle = fillColor;
+        pvCtx.fill();
+
+        pvCtx.strokeStyle = strokeColor;
+        pvCtx.lineWidth = 2.5;
+        pvCtx.stroke();
+      }
+
+      // 2. Overlay Current Cycle Progress Trajectory
+      const currCycle = activeEng.currentCyclePV;
+      if (currCycle && currCycle.length > 1) {
+        pvCtx.beginPath();
+        pvCtx.moveTo(valToX(currCycle[0].v), valToY(currCycle[0].p));
+        for (let i = 1; i < currCycle.length; i++) {
+          pvCtx.lineTo(valToX(currCycle[i].v), valToY(currCycle[i].p));
+        }
+        pvCtx.strokeStyle = '#ffffff';
+        pvCtx.lineWidth = 3.0;
+        pvCtx.stroke();
+      }
+
+      // 3. Current Active State Point Dot Moving Along the Loop
+      const cx = valToX(activeEng.volume);
+      const cy = valToY(activeEng.pressure);
+
+      pvCtx.fillStyle = '#ffffff';
+      pvCtx.beginPath();
+      pvCtx.arc(cx, cy, 5.0, 0, Math.PI * 2);
+      pvCtx.fill();
+      pvCtx.strokeStyle = strokeColor;
+      pvCtx.lineWidth = 2.5;
+      pvCtx.stroke();
+    }
+
+    // ------------------------------------------------------------------------
+    // DASHBOARD METRICS UPDATER
+    // ------------------------------------------------------------------------
+    function updateDashboard() {
+      const activeEng = state.mode === 'watt' ? state.watt : state.newcomen;
+
+      document.getElementById('dash-p').innerHTML = `${activeEng.pressure.toFixed(1)} <span class="text-xs font-normal">kPa</span>`;
+      document.getElementById('dash-t').innerHTML = `${activeEng.temp.toFixed(1)} <span class="text-xs font-normal">°C</span>`;
+      document.getElementById('dash-v').innerHTML = `${activeEng.volume.toFixed(2)} <span class="text-xs font-normal">m³</span>`;
+
+      document.getElementById('dash-qin').textContent = `${Math.round(activeEng.qIn)} kJ`;
+      document.getElementById('dash-qout').textContent = `${Math.round(activeEng.qOut)} kJ`;
+      document.getElementById('dash-work').textContent = `${activeEng.work.toFixed(1)} kJ`;
+
+      document.getElementById('dash-eff').textContent = activeEng.efficiency.toFixed(1);
+
+      const countLabel = document.getElementById('cycle-count-label');
+      countLabel.textContent = `사이클: ${activeEng.cycles}회 완료`;
+
+      const effSub = document.getElementById('dash-eff-sub');
+      if (state.mode === 'watt') {
+        effSub.textContent = '와트: ~4.5% (뉴커먼 대비 4배↑)';
+      } else {
+        effSub.textContent = '뉴커먼: ~1.0% (열손실 막대함)';
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // DYNAMIC EDUCATIONAL CONCEPT EXPLANATION CARD
+    // ------------------------------------------------------------------------
+    function updateConceptText(mode) {
+      const title = document.getElementById('concept-title');
+      const body = document.getElementById('concept-body');
+
+      if (mode === 'newcomen') {
+        title.textContent = '개념 학습: 토머스 뉴커먼의 대기압 증기기관 (Newcomen Engine, 1712)';
+        body.innerHTML = `
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-sky-400 mb-1">1. 구조 및 작동 원리</h3>
+            <p>수직 실린더 내부로 증기를 채운 후, <span class="text-sky-300 font-semibold">실린더 내부에 차가운 물을 직접 분사</span>하여 증기를 응축시킵니다. 내부가 진공 상태가 되면 위쪽 대기압이 피스톤을 눌러 빔(Beam)을 움직이고 광물 배수 펌프를 작동시킵니다.</p>
+          </div>
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-red-400 mb-1">2. 치명적 열 손실 요인</h3>
+            <p>매 사이클마다 차가운 물을 직접 분사함에 따라 <span class="text-red-300 font-semibold">무거운 쇠 실린더 전체가 차갑게 식어버립니다.</span> 다음 사이클에서 새 증기가 들어올 때 실린더 벽을 다시 100°C로 데우느라 막대한 열량($Q_{\\text{loss}}$)이 낭비됩니다.</p>
+          </div>
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-amber-400 mb-1">3. 열효율 및 한계</h3>
+            <p>공급된 열량 중 유효한 일로 전환되는 비율은 <span class="font-bold text-amber-400">$e \\approx 0.5\\% \\sim 1.0\\%$</span>에 불과했습니다. 석탄 소비량이 어마어마하여 탄광 직근처가 아니면 경제성이 떨어졌습니다.</p>
+          </div>
+        `;
+      } else {
+        title.textContent = '개념 학습: 제임스 와트의 분리 응축기 증기기관 (Watt Engine, 1769)';
+        body.innerHTML = `
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-emerald-400 mb-1">1. 혁신적 구조: 독립 응축기</h3>
+            <p>실린더와 별도로 냉각수조 안에 <span class="text-emerald-300 font-semibold">독립 응축기(Separate Condenser)</span>를 설치했습니다. 밸브를 열어 증기만 별도 응축기로 이동시켜 응축시킴으로써 실린더 자체 온도를 항상 뜨겁게(100°C) 유지합니다.</p>
+          </div>
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-indigo-400 mb-1">2. 증기 재킷과 회전 운동</h3>
+            <p>실린더 외벽에 증기 재킷을 씌워 열 방출을 차단했으며, 단순 펌프질을 넘어 <span class="text-indigo-300 font-semibold">플라이휠(Flywheel) 메커니즘</span>을 결합하여 공장 방적기 등 기계 회전 동력으로 발전시켰습니다.</p>
+          </div>
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-emerald-400 mb-1">3. 열효율 4배 상승</h3>
+            <p>실린더의 가열/냉각 반복 손실을 없애 열효율을 <span class="font-bold text-emerald-400">$e \\approx 4.0\\% \\sim 5.0\\%$ (뉴커먼 대비 4배 이상)</span>로 획기적으로 상승시켰으며 산업 혁명을 이끌었습니다.</p>
+          </div>
+        `;
+      }
+    }
+
+  </script>
+</body>
+</html>
